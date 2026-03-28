@@ -4,12 +4,14 @@
  */
 
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
 import CoursePublish from './pages/CoursePublish';
+import CourseDetails from './pages/CourseDetails';
 import Assignments from './pages/Assignments';
 import AssignmentSubmit from './pages/AssignmentSubmit';
 import AssignmentPublish from './pages/AssignmentPublish';
@@ -18,6 +20,10 @@ import Exams from './pages/Exams';
 import ExamPublish from './pages/ExamPublish';
 import ExamAnalysis from './pages/ExamAnalysis';
 import Grades from './pages/Grades';
+import Attendance from './pages/Attendance';
+import Materials from './pages/Materials';
+import Messages from './pages/Messages';
+import Users from './pages/Users';
 import { useAuthStore } from './store/authStore';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -28,10 +34,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function App() {
+function AnimatedRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
         <Route path="/login" element={<Login />} />
         <Route
           path="/"
@@ -43,6 +48,7 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="courses" element={<Courses />} />
+          <Route path="courses/:id" element={<CourseDetails />} />
           <Route path="courses/new" element={<CoursePublish />} />
           <Route path="courses/:id/edit" element={<CoursePublish />} />
           <Route path="assignments" element={<Assignments />} />
@@ -55,9 +61,20 @@ export default function App() {
           <Route path="exams/:id/edit" element={<ExamPublish />} />
           <Route path="exams/:id/analysis" element={<ExamAnalysis />} />
           <Route path="grades" element={<Grades />} />
-          <Route path="users" element={<div className="p-8 text-center text-gray-500">用户管理模块开发中...</div>} />
+          <Route path="attendance" element={<Attendance />} />
+          <Route path="materials" element={<Materials />} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="users" element={<Users />} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AnimatedRoutes />
     </BrowserRouter>
   );
 }

@@ -40,44 +40,92 @@ router.get('/course/:courseId', async (req, res) => {
   }
 });
 
-// 创建新考试 (含问题)
-router.post('/', async (req, res) => {
+// 获取单场考试详情
+router.get('/:id', async (req, res) => {
   try {
-    const { courseId, title, description, startTime, duration, totalScore, questions } = req.body;
-    
-    // 1. 插入考试
+    const { id } = req.params;
+    const { data: exam, error } = await supabase
+      .from('exams')
+      .select('*, questions(*)')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+
+    const formatted = {
+      id: exam.id,
+      courseId: exam.course_id,
+      title: exam.title,
+      description: exam.description,
+      startTime: exam.start_time,
+      duration: exam.duration,
+      totalScore: exam.total_score,
+      status: exam.status,
+      questions: exam.questions?.map((q: any) => ({
+        id: q.id,
+        type: q.type,
+        text: q.text,
+        options: q.options,
+        correctAnswer: q.correct_answer,
+        score: q.score
+      })) || []
+    };
+
+    res.json(formatted);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 更新考试
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, startTime, duration, totalScore, status, questions } = req.body;
+
     const { data: exam, error: eError } = await supabase
       .from('exams')
-      .insert([{
-        course_id: courseId,
+      .update({
         title,
         description,
         start_time: startTime,
         duration,
         total_score: totalScore,
-        status: 'upcoming'
-      }])
+        status
+      })
+      .eq('id', id)
       .select()
       .single();
-      
+
     if (eError) throw eError;
-    
-    // 2. 插入问题
-    if (questions && questions.length > 0) {
+
+    // 如果提供了问题，先删除旧的再插入新的 (简单处理)
+    if (questions) {
+      await supabase.from('questions').delete().eq('exam_id', id);
       const questionsData = questions.map((q: any) => ({
-        exam_id: exam.id,
+        exam_id: id,
         type: q.type,
         text: q.text,
         options: q.options,
         correct_answer: q.correctAnswer,
         score: q.score
       }));
-      
-      const { error: qError } = await supabase.from('questions').insert(questionsData);
-      if (qError) throw qError;
+      await supabase.from('questions').insert(questionsData);
     }
-    
-    res.status(201).json(exam);
+
+    res.json(exam);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 删除考试
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from('exams').delete().eq('id', id);
+    if (error) throw error;
+    res.status(204).send();
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -34,7 +34,11 @@ export default function Courses() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {courses.map((course) => (
-          <Card key={course.id} className="overflow-hidden flex flex-col">
+          <Card 
+            key={course.id} 
+            className="overflow-hidden flex flex-col cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 group"
+            onClick={() => navigate(`/courses/${course.id}`)}
+          >
             <div className="bg-blue-600 h-24 relative">
               {user?.role === 'admin' && (
                 <Button

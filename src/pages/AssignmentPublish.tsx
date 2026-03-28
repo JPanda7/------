@@ -5,11 +5,15 @@ import { useAssignmentStore } from '@/store/assignmentStore';
 import { useCourseStore } from '@/store/courseStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Upload, X, PlusCircle } from 'lucide-react';
+import { 
+  ArrowLeft, Upload, X, PlusCircle, CheckCircle2, 
+  Settings, FileText, Calendar, Target, HelpCircle, Trash2
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AssignmentPublish() {
   const { id } = useParams<{ id: string }>();
@@ -27,19 +31,18 @@ export default function AssignmentPublish() {
   const hasSubmissions = isEdit ? submissions.some(s => s.assignmentId === id && s.status !== 'draft') : false;
   const isPastDeadline = existingAssignment ? new Date(existingAssignment.deadline) < new Date() : false;
 
-  const [title, setTitle] = useState(existingAssignment?.title || '');
-  const [description, setDescription] = useState(existingAssignment?.description || '');
-  const [requirements, setRequirements] = useState(existingAssignment?.requirements || '');
-  const [deadline, setDeadline] = useState(existingAssignment?.deadline ? new Date(existingAssignment.deadline).toISOString().slice(0, 16) : '');
-  const [totalScore, setTotalScore] = useState(existingAssignment?.totalScore?.toString() || '100');
-  const [weight, setWeight] = useState(existingAssignment?.weight?.toString() || '10');
-  const [gradingCriteria, setGradingCriteria] = useState(existingAssignment?.gradingCriteria || '');
-  const [allowLate, setAllowLate] = useState(existingAssignment?.allowLate || false);
-  const [latePenalty, setLatePenalty] = useState(existingAssignment?.latePenalty?.toString() || '0');
-  const [isGroupAssignment, setIsGroupAssignment] = useState(existingAssignment?.isGroupAssignment || false);
-  const [attachments, setAttachments] = useState<{ name: string; url: string }[]>(existingAssignment?.attachments || []);
-  const [questions, setQuestions] = useState<any[]>(existingAssignment?.questions || []);
-
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [requirements, setRequirements] = useState('');
+  const [deadline, setDeadline] = useState('');
+  const [totalScore, setTotalScore] = useState('100');
+  const [weight, setWeight] = useState('10');
+  const [gradingCriteria, setGradingCriteria] = useState('');
+  const [allowLate, setAllowLate] = useState(false);
+  const [latePenalty, setLatePenalty] = useState('0');
+  const [isGroupAssignment, setIsGroupAssignment] = useState(false);
+  const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -55,12 +58,29 @@ export default function AssignmentPublish() {
     }
   }, [isEdit, id, fetchAssignmentById]);
 
+  useEffect(() => {
+    if (existingAssignment) {
+      setTitle(existingAssignment.title || '');
+      setDescription(existingAssignment.description || '');
+      setRequirements(existingAssignment.requirements || '');
+      setDeadline(existingAssignment.deadline ? new Date(existingAssignment.deadline).toISOString().slice(0, 16) : '');
+      setTotalScore(existingAssignment.totalScore?.toString() || '100');
+      setWeight(existingAssignment.weight?.toString() || '10');
+      setGradingCriteria(existingAssignment.gradingCriteria || '');
+      setAllowLate(existingAssignment.allowLate || false);
+      setLatePenalty(existingAssignment.latePenalty?.toString() || '0');
+      setIsGroupAssignment(existingAssignment.isGroupAssignment || false);
+      setAttachments(existingAssignment.attachments || []);
+      setQuestions(existingAssignment.questions || []);
+    }
+  }, [existingAssignment]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const newAttachments = Array.from(files).map(file => ({
         name: file.name,
-        url: URL.createObjectURL(file), // Mock URL
+        url: URL.createObjectURL(file),
       }));
       setAttachments([...attachments, ...newAttachments]);
     }
@@ -76,7 +96,7 @@ export default function AssignmentPublish() {
       type,
       text: '',
       options: type === 'multiple_choice' ? ['', '', '', ''] : undefined,
-      correctAnswer: type === 'multiple_choice' ? '' : 'true',
+      correctAnswer: type === 'multiple_choice' ? 'A' : 'true',
       score: 10
     }]);
   };
@@ -97,6 +117,92 @@ export default function AssignmentPublish() {
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
+  const handleQuestionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      parseAndAddQuestions(text, file.name);
+      e.target.value = '';
+    };
+
+    if (file.name.endsWith('.txt')) {
+      reader.readAsText(file);
+    } else {
+      addNotification({
+        title: '格式解析提示',
+        message: `正在解析 ${file.name}。非纯文本格式将进行模拟提取演示。`,
+        targetRole: 'teacher'
+      });
+      const mockText = "1. [选择题] React的虚拟DOM主要作用是什么？\nA. 提升页面渲染性能\nB. 操作真实DOM\nC. 编写CSS更方便\nD. 增强安全性\n答案: A\n2. [判断题] Vue是一个后端的Node.js框架。\n答案: 错误";
+      parseAndAddQuestions(mockText, file.name);
+      e.target.value = '';
+    }
+  };
+
+  const parseAndAddQuestions = (text: string, filename: string) => {
+    let parsedCount = 0;
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    
+    let currentQ: any = null;
+    let newQuestions = [...questions];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const qMatch = line.match(/^(\d+)[.、]\s*(?:\[(.*?)\])?\s*(.*)/);
+        if (qMatch) {
+            if (currentQ) {
+                newQuestions.push(currentQ);
+                parsedCount++;
+            }
+            const typeHint = qMatch[2] || '';
+            const textContent = qMatch[3] || '';
+            const isTF = typeHint.includes('判断') || textContent.includes('判断题');
+            currentQ = {
+                id: `q${Date.now()}_${i}`,
+                type: isTF ? 'true_false' : 'multiple_choice',
+                text: textContent,
+                options: isTF ? undefined : ['', '', '', ''],
+                correctAnswer: isTF ? 'true' : 'A',
+                score: 10
+            };
+            continue;
+        }
+
+        if (currentQ) {
+            const optMatch = line.match(/^([A-Da-d])[.、]\s*(.*)/);
+            if (optMatch && currentQ.type === 'multiple_choice') {
+                const idx = optMatch[1].toUpperCase().charCodeAt(0) - 65;
+                if (idx >= 0 && idx < 4) {
+                    currentQ.options[idx] = optMatch[2];
+                }
+            } else if (line.startsWith('答案') || line.toLowerCase().startsWith('answer')) {
+                const ansStr = line.replace(/^答案[:：\s]*/, '').trim().toUpperCase();
+                if (currentQ.type === 'true_false') {
+                    currentQ.correctAnswer = ['对', '正确', 'TRUE', 'T'].includes(ansStr) ? 'true' : 'false';
+                } else if (currentQ.type === 'multiple_choice') {
+                    const ansMatch = ansStr.match(/[A-D]/);
+                    if (ansMatch) currentQ.correctAnswer = ansMatch[0];
+                }
+            }
+        }
+    }
+    
+    if (currentQ) {
+        newQuestions.push(currentQ);
+        parsedCount++;
+    }
+
+    setQuestions(newQuestions);
+    addNotification({
+      title: '文档导入成功',
+      message: `从 ${filename} 中成功解析出 ${parsedCount} 道题目。`,
+      targetRole: 'teacher'
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -113,7 +219,7 @@ export default function AssignmentPublish() {
     }
 
     const deadlineDate = new Date(deadline);
-    if (deadlineDate <= new Date()) {
+    if (deadlineDate <= new Date() && !isEdit) {
       setError('截止时间不能早于当前时间');
       return;
     }
@@ -134,353 +240,280 @@ export default function AssignmentPublish() {
       questions,
     };
 
-    if (isEdit) {
-      await updateAssignment(id!, assignmentData);
-    } else {
-      await addAssignment(assignmentData);
-      // Notify students
-      addNotification({
-        title: `新作业发布: ${title}`,
-        message: `《${currentCourse?.courseName || '课程'}》发布了新作业，截止时间为 ${deadlineDate.toLocaleString('zh-CN')}，请及时完成。`,
-        targetRole: 'student',
-      });
+    try {
+      if (isEdit) {
+        await updateAssignment(id!, assignmentData);
+      } else {
+        await addAssignment(assignmentData);
+        addNotification({
+          title: `新作业发布: ${title}`,
+          message: `《${currentCourse?.courseName || '课程'}》发布了新作业，截止时间为 ${deadlineDate.toLocaleString('zh-CN')}。`,
+          targetRole: 'student',
+        });
+      }
+      navigate(`/assignments?courseId=${targetCourseId}`);
+    } catch (err: any) {
+      setError(err.message || '提交失败，请重试');
     }
-
-    navigate(`/assignments?courseId=${targetCourseId}`);
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" onClick={() => navigate('/assignments')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          返回作业列表
-        </Button>
-        <h1 className="text-2xl font-bold text-gray-900">{isEdit ? '编辑作业' : '发布新作业'}</h1>
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/assignments')} className="rounded-full bg-white shadow-sm">
+            <ArrowLeft className="w-5 h-5 text-slate-600" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">{isEdit ? '编辑作业详情' : '创建新作业计划'}</h1>
+            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mt-0.5">{currentCourse?.courseName || '加载中...'}</p>
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>作业详情 - {currentCourse?.courseName || '加载中...'}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-md text-sm">
-                {error}
-              </div>
-            )}
-
-            {isPastDeadline && (
-              <div className="p-3 bg-yellow-50 text-yellow-600 rounded-md text-sm">
-                该作业已过截止时间，无法修改。
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="title">作业标题 <span className="text-red-500">*</span></Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="例如：第一章课后作业"
-                disabled={isPastDeadline}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">作业描述 <span className="text-red-500">*</span></Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="简要描述作业内容..."
-                rows={3}
-                disabled={isPastDeadline}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="requirements">详细要求</Label>
-              <Textarea
-                id="requirements"
-                value={requirements}
-                onChange={(e) => setRequirements(e.target.value)}
-                placeholder="输入作业的具体要求、格式规范等..."
-                rows={4}
-                disabled={isPastDeadline}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="deadline">截止时间 <span className="text-red-500">*</span></Label>
-                <Input
-                  id="deadline"
-                  type="datetime-local"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  disabled={isPastDeadline}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="totalScore">总分 <span className="text-red-500">*</span></Label>
-                <Input
-                  id="totalScore"
-                  type="number"
-                  min="0"
-                  value={totalScore}
-                  onChange={(e) => setTotalScore(e.target.value)}
-                  disabled={isPastDeadline}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="weight">成绩权重 (%)</Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  disabled={isPastDeadline}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="latePenalty">迟交惩罚 (每天扣分)</Label>
-                <Input
-                  id="latePenalty"
-                  type="number"
-                  min="0"
-                  value={latePenalty}
-                  onChange={(e) => setLatePenalty(e.target.value)}
-                  disabled={isPastDeadline || !allowLate}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowLate"
-                checked={allowLate}
-                onChange={(e) => setAllowLate(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                disabled={isPastDeadline}
-              />
-              <Label htmlFor="allowLate" className={`cursor-pointer ${isPastDeadline ? 'opacity-50' : ''}`}>
-                允许迟交 (截止时间后仍可提交，但会标记为迟交)
-              </Label>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="gradingCriteria">评分标准</Label>
-              <Textarea
-                id="gradingCriteria"
-                value={gradingCriteria}
-                onChange={(e) => setGradingCriteria(e.target.value)}
-                placeholder="例如：代码规范占20%，功能实现占80%..."
-                rows={3}
-                disabled={hasSubmissions || isPastDeadline}
-              />
-              {(hasSubmissions && !isPastDeadline) && (
-                <p className="text-xs text-yellow-600 mt-1">
-                  已有学生提交作业，无法修改评分标准。
-                </p>
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Basic Info */}
+        <div className="lg:col-span-2 space-y-8">
+          <Card className="border-none shadow-sm rounded-[40px] overflow-hidden bg-white">
+            <CardHeader className="p-8 pb-4">
+              <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" /> 基本信息配置
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              {error && (
+                <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> {error}
+                </div>
               )}
-            </div>
 
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isGroupAssignment"
-                checked={isGroupAssignment}
-                onChange={(e) => setIsGroupAssignment(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                disabled={isPastDeadline}
-              />
-              <Label htmlFor="isGroupAssignment" className={`cursor-pointer ${isPastDeadline ? 'opacity-50' : ''}`}>
-                设置为小组作业 (支持小组成员协作)
-              </Label>
-            </div>
+              <div className="space-y-4">
+                <Label htmlFor="title" className="text-xs font-black uppercase text-slate-400 ml-1">作业标题</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="输入一个能够清晰描述作业内容的标题..."
+                  className="h-14 rounded-2xl border-2 border-slate-50 bg-slate-50/50 focus:bg-white focus:border-blue-500 transition-all font-bold"
+                  disabled={isPastDeadline}
+                />
+              </div>
 
-            <div className="space-y-4 border-t pt-6">
-              <div className="flex justify-between items-center">
-                <Label className="text-lg font-medium">客观题设置 (自动评分)</Label>
+              <div className="space-y-4">
+                <Label htmlFor="description" className="text-xs font-black uppercase text-slate-400 ml-1">作业简介 (显示在列表)</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="简要概括本次作业的任务目标..."
+                  className="rounded-2xl border-2 border-slate-50 bg-slate-50/50 focus:bg-white focus:border-blue-500 transition-all font-medium min-h-[100px]"
+                  disabled={isPastDeadline}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <Label htmlFor="requirements" className="text-xs font-black uppercase text-slate-400 ml-1">详细任务要求</Label>
+                <Textarea
+                  id="requirements"
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  placeholder="列出具体的完成步骤、参考资料及提交格式要求..."
+                  className="rounded-2xl border-2 border-slate-50 bg-slate-50/50 focus:bg-white focus:border-blue-500 transition-all font-medium min-h-[200px]"
+                  disabled={isPastDeadline}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Question Editor Section */}
+          <Card className="border-none shadow-sm rounded-[40px] overflow-hidden bg-white">
+             <CardHeader className="p-8 pb-6 border-b border-slate-50 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-orange-600" /> 客观题题库
+                  </CardTitle>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">系统全自动评分模块</p>
+                </div>
                 {!isPastDeadline && (
-                  <div className="space-x-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => addQuestion('multiple_choice')}>
-                      <PlusCircle className="w-4 h-4 mr-1" /> 添加选择题
+                  <div className="flex gap-2">
+                    <input type="file" id="q-file" className="hidden" accept=".txt" onChange={handleQuestionUpload} />
+                    <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('q-file')?.click()} className="rounded-xl border-slate-100 font-bold text-xs h-10 px-4">
+                       快捷导入
                     </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => addQuestion('true_false')}>
-                      <PlusCircle className="w-4 h-4 mr-1" /> 添加判断题
+                    <Button type="button" onClick={() => addQuestion('multiple_choice')} className="rounded-xl bg-slate-900 hover:bg-black font-bold text-xs h-10 px-4">
+                       + 选择题
                     </Button>
                   </div>
                 )}
-              </div>
-
-              {questions.length === 0 ? (
-                <p className="text-sm text-gray-500">暂无客观题。添加客观题后，系统将自动进行评分。</p>
-              ) : (
-                <div className="space-y-6">
-                  {questions.map((q, qIndex) => (
-                    <Card key={q.id} className="bg-gray-50">
-                      <CardContent className="p-4 space-y-4">
+             </CardHeader>
+             <CardContent className="p-8 space-y-6">
+                {questions.length === 0 ? (
+                  <div className="py-12 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                      <HelpCircle className="w-8 h-8 text-slate-200" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-400">暂无客观题，点击上方按钮添加</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {questions.map((q, idx) => (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={q.id} className="p-6 rounded-[32px] bg-slate-50/50 border border-slate-100 space-y-4">
                         <div className="flex justify-between items-start">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-sm">
-                                {q.type === 'multiple_choice' ? '选择题' : '判断题'} {qIndex + 1}
+                           <div className="flex items-center gap-4 flex-1">
+                              <span className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-xs font-black text-slate-900 shrink-0">
+                                {idx + 1}
                               </span>
-                              <Input
-                                type="number"
-                                className="w-20 h-8"
-                                placeholder="分数"
-                                value={q.score}
-                                onChange={(e) => updateQuestion(qIndex, 'score', Number(e.target.value))}
-                                disabled={isPastDeadline}
+                              <Input 
+                                placeholder="请输入题目正文..."
+                                value={q.text}
+                                onChange={(e) => updateQuestion(idx, 'text', e.target.value)}
+                                className="flex-1 bg-transparent border-none shadow-none font-bold text-slate-700 h-10"
                               />
-                              <span className="text-sm text-gray-500">分</span>
-                            </div>
-                            <Textarea
-                              placeholder="请输入题目内容..."
-                              value={q.text}
-                              onChange={(e) => updateQuestion(qIndex, 'text', e.target.value)}
-                              disabled={isPastDeadline}
-                              rows={2}
-                            />
-                          </div>
-                          {!isPastDeadline && (
-                            <Button type="button" variant="ghost" size="sm" className="text-red-500 ml-4" onClick={() => removeQuestion(qIndex)}>
-                              <X className="w-4 h-4" />
-                            </Button>
-                          )}
+                           </div>
+                           <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <Input type="number" value={q.score} onChange={(e) => updateQuestion(idx, 'score', e.target.value)} className="w-20 h-10 rounded-xl font-black text-center pr-6" />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-300">分</span>
+                              </div>
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeQuestion(idx)} className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                           </div>
                         </div>
 
                         {q.type === 'multiple_choice' && (
-                          <div className="space-y-2 pl-4">
-                            {q.options.map((opt: string, optIndex: number) => (
-                              <div key={optIndex} className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  name={`correct-${q.id}`}
-                                  checked={q.correctAnswer === String.fromCharCode(65 + optIndex)}
-                                  onChange={() => updateQuestion(qIndex, 'correctAnswer', String.fromCharCode(65 + optIndex))}
-                                  disabled={isPastDeadline}
-                                />
-                                <span className="text-sm font-medium w-6">{String.fromCharCode(65 + optIndex)}.</span>
-                                <Input
-                                  className="h-8 flex-1"
-                                  placeholder={`选项 ${String.fromCharCode(65 + optIndex)}`}
-                                  value={opt}
-                                  onChange={(e) => updateOption(qIndex, optIndex, e.target.value)}
-                                  disabled={isPastDeadline}
-                                />
-                              </div>
-                            ))}
+                          <div className="grid grid-cols-2 gap-4 pl-12">
+                            {q.options.map((opt: string, oIdx: number) => {
+                               const code = String.fromCharCode(65 + oIdx);
+                               return (
+                                 <div key={oIdx} className="flex items-center gap-3">
+                                   <button 
+                                     type="button" 
+                                     onClick={() => updateQuestion(idx, 'correctAnswer', code)}
+                                     className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black transition-all ${
+                                       q.correctAnswer === code ? 'bg-blue-600 text-white' : 'bg-white text-slate-300 border border-slate-100'
+                                     }`}
+                                   >
+                                     {code}
+                                   </button>
+                                   <Input 
+                                     placeholder={`选项 ${code}`}
+                                     value={opt}
+                                     onChange={(e) => updateOption(idx, oIdx, e.target.value)}
+                                     className="h-10 bg-white border-none shadow-none font-medium text-xs rounded-xl"
+                                   />
+                                 </div>
+                               )
+                            })}
                           </div>
                         )}
-
-                        {q.type === 'true_false' && (
-                          <div className="flex space-x-4 pl-4">
-                            <label className="flex items-center space-x-2">
-                              <input
-                                type="radio"
-                                name={`correct-${q.id}`}
-                                checked={q.correctAnswer === 'true'}
-                                onChange={() => updateQuestion(qIndex, 'correctAnswer', 'true')}
-                                disabled={isPastDeadline}
-                              />
-                              <span>正确</span>
-                            </label>
-                            <label className="flex items-center space-x-2">
-                              <input
-                                type="radio"
-                                name={`correct-${q.id}`}
-                                checked={q.correctAnswer === 'false'}
-                                onChange={() => updateQuestion(qIndex, 'correctAnswer', 'false')}
-                                disabled={isPastDeadline}
-                              />
-                              <span>错误</span>
-                            </label>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4 border-t pt-6">
-              <Label>附件与参考资料</Label>
-              {!isPastDeadline && (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    multiple
-                    onChange={handleFileUpload}
-                  />
-                  <Label
-                    htmlFor="file-upload"
-                    className="cursor-pointer flex flex-col items-center space-y-2"
-                  >
-                    <div className="p-3 bg-blue-50 text-blue-600 rounded-full">
-                      <Upload className="w-6 h-6" />
-                    </div>
-                    <span className="text-sm font-medium text-blue-600">
-                      点击上传附件
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      支持 PDF, Word, Excel, ZIP 等格式
-                    </span>
-                  </Label>
-                </div>
-              )}
-
-              {attachments.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">已上传附件：</h4>
-                  <ul className="space-y-2">
-                    {attachments.map((file, index) => (
-                      <li key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-100">
-                        <span className="text-sm text-gray-600 truncate">{file.name}</span>
-                        {!isPastDeadline && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => removeAttachment(index)}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </li>
+                      </motion.div>
                     ))}
-                  </ul>
+                  </div>
+                )}
+             </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Dynamic Settings */}
+        <div className="space-y-8">
+           <Card className="border-none shadow-sm rounded-[40px] overflow-hidden bg-slate-900 text-white">
+             <CardHeader className="p-8 pb-4">
+                <CardTitle className="text-lg font-black flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-blue-400" /> 发布控制台
+                </CardTitle>
+             </CardHeader>
+             <CardContent className="p-8 space-y-8">
+                <div className="space-y-4">
+                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1 flex items-center gap-2">
+                     <Calendar className="w-3 h-3" /> 提交截止日期
+                   </Label>
+                   <Input 
+                     type="datetime-local"
+                     value={deadline}
+                     onChange={(e) => setDeadline(e.target.value)}
+                     className="h-14 bg-white/5 border-none rounded-[20px] font-bold text-white focus:ring-4 focus:ring-blue-500/20"
+                     disabled={isPastDeadline}
+                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">满分分值</Label>
+                      <Input 
+                         type="number"
+                         value={totalScore}
+                         onChange={(e) => setTotalScore(e.target.value)}
+                         className="h-14 bg-white/5 border-none rounded-[20px] font-black text-white text-center"
+                      />
+                   </div>
+                   <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">总评权重 (%)</Label>
+                      <Input 
+                         type="number"
+                         value={weight}
+                         onChange={(e) => setWeight(e.target.value)}
+                         className="h-14 bg-white/5 border-none rounded-[20px] font-black text-white text-center"
+                      />
+                   </div>
+                </div>
+
+                <div className="p-6 rounded-[28px] bg-white/5 space-y-6">
+                   <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <Label className="text-sm font-black">允许逾期提交</Label>
+                        <span className="text-[10px] text-slate-500 font-bold">截止后仍可完成作业</span>
+                      </div>
+                      <input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} className="w-5 h-5 accent-blue-500" />
+                   </div>
+                   {allowLate && (
+                     <div className="pt-4 border-t border-white/5 space-y-4 animate-in fade-in zoom-in-95">
+                        <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">每日逾期扣除分值</Label>
+                        <Input type="number" value={latePenalty} onChange={(e) => setLatePenalty(e.target.value)} className="h-12 bg-white/10 border-none rounded-xl font-black text-center" />
+                     </div>
+                   )}
+                </div>
+
+                <div className="p-6 rounded-[28px] bg-white/5 flex items-center justify-between">
+                   <div className="flex flex-col">
+                      <Label className="text-sm font-black">小组协作模式</Label>
+                      <span className="text-[10px] text-slate-500 font-bold">开启后支持成员共同提交</span>
+                   </div>
+                   <input type="checkbox" checked={isGroupAssignment} onChange={(e) => setIsGroupAssignment(e.target.checked)} className="w-5 h-5 accent-blue-500" />
+                </div>
+
+                <Button type="submit" className="w-full h-16 rounded-[24px] bg-blue-600 hover:bg-blue-700 font-black text-lg shadow-2xl shadow-blue-900/40 active:scale-95 transition-all">
+                   {isEdit ? '保存更改并同步' : '确认为全班发布'}
+                </Button>
+             </CardContent>
+           </Card>
+
+           <Card className="border-none shadow-sm rounded-[40px] bg-white overflow-hidden p-8 space-y-4">
+              <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">上传补充文件 (附件)</Label>
+              <div className="border-2 border-dashed border-slate-50 rounded-[28px] p-8 text-center bg-slate-50/20 group hover:border-blue-200 transition-all">
+                 <input type="file" id="f-upload" className="hidden" multiple onChange={handleFileUpload} />
+                 <label htmlFor="f-upload" className="cursor-pointer">
+                    <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                       <Upload className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <p className="text-xs font-black text-slate-900">点击上传练习或要求附件</p>
+                 </label>
+              </div>
+              {attachments.length > 0 && (
+                <div className="space-y-2 mt-4">
+                   {attachments.map((file, i) => (
+                      <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                         <span className="text-[11px] font-bold text-slate-600 truncate max-w-[150px]">{file.name}</span>
+                         <Button type="button" variant="ghost" size="icon" onClick={() => removeAttachment(i)} className="w-6 h-6 rounded-lg text-slate-400">
+                            <X className="w-3 h-3" />
+                         </Button>
+                      </div>
+                   ))}
                 </div>
               )}
-            </div>
-
-            <div className="flex justify-end space-x-4 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => navigate('/assignments')}>
-                取消
-              </Button>
-              {!isPastDeadline && (
-                <Button type="submit">
-                  {isEdit ? '保存修改' : '发布作业'}
-                </Button>
-              )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+           </Card>
+        </div>
+      </form>
     </div>
   );
 }

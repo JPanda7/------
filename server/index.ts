@@ -5,6 +5,9 @@ import authRoutes from './routes/auth.ts';
 import courseRoutes from './routes/courses.ts';
 import assignmentRoutes from './routes/assignments.ts';
 import examRoutes from './routes/exams.ts';
+import userRoutes from './routes/users.ts';
+import materialRoutes from './routes/materials.ts';
+import attendanceRoutes from './routes/attendance.ts';
 
 dotenv.config({ path: '.env.server' });
 
@@ -20,6 +23,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/materials', materialRoutes);
+app.use('/api/attendance', attendanceRoutes);
+
 
 // Health check
 app.get('/api/health', (req, res) => {

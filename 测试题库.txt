@@ -1,0 +1,26 @@
+1. [选择题] 以下哪个选项不是React的生命周期函数？
+A. componentDidMount
+B. componentWillUpdate
+C. render
+D. v-mounted
+答案: D
+
+2. [选择题] React的虚拟DOM主要作用是什么？
+A. 提升页面渲染性能
+B. 直接操作真实DOM更安全
+C. 让CSS编写更方便
+D. 取代后端的数据库存储
+答案: A
+
+3. [判断题] React是基于组件化思想开发的前端框架。
+答案: 正确
+
+4. [选择题] 在React中，用于在函数组件中管理状态的Hook是？
+A. useEffect
+B. useState
+C. useContext
+D. useReducer
+答案: B
+
+5. [判断题] Vue和React都是完全相同的前端框架，没有任何区别。
+答案: 错误

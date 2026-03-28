@@ -14,8 +14,8 @@ interface AssignmentState {
   updateAssignment: (id: string, assignment: Partial<Assignment>) => Promise<void>;
   saveDraft: (submission: Partial<Submission> & { assignmentId: string, studentId: string }) => Promise<void>;
   submitAssignment: (submission: Partial<Submission> & { assignmentId: string, studentId: string }) => Promise<void>;
-  gradeSubmission: (submissionId: string, manualScore: number, feedback: string, totalScore: number) => Promise<void>;
-  batchGradeSubmissions: (grades: { id: string, manualScore: number, feedback: string, score: number }[]) => Promise<void>;
+  gradeSubmission: (submissionId: string, manualScore: number, feedback: string, totalScore?: number) => Promise<void>;
+  batchGradeSubmissions: (grades: { id: string, manualScore: number, feedback: string, score?: number }[]) => Promise<void>;
 }
 
 export const useAssignmentStore = create<AssignmentState>((set, get) => ({
@@ -78,10 +78,15 @@ export const useAssignmentStore = create<AssignmentState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(assignmentData),
       });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add assignment');
+      }
       const newAssignment = await response.json();
       set((state) => ({ assignments: [...state.assignments, newAssignment] }));
     } catch (err: any) {
       set({ error: err.message });
+      throw err;
     }
   },
 
@@ -92,17 +97,45 @@ export const useAssignmentStore = create<AssignmentState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedFields),
       });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update assignment');
+      }
       const updated = await response.json();
       set((state) => ({
         assignments: state.assignments.map(a => a.id === id ? { ...a, ...updated } : a)
       }));
     } catch (err: any) {
       set({ error: err.message });
+      throw err;
     }
   },
 
   saveDraft: async (draft) => {
-    await get().submitAssignment({ ...draft, status: 'draft' });
+    try {
+      const response = await fetch('/api/assignments/submissions/draft', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || '保存草稿失败');
+      }
+      const savedDraft = await response.json();
+      set((state) => {
+        const idx = state.submissions.findIndex(s => s.assignmentId === draft.assignmentId && s.studentId === draft.studentId);
+        if (idx >= 0) {
+          const newState = [...state.submissions];
+          newState[idx] = savedDraft;
+          return { submissions: newState };
+        }
+        return { submissions: [...state.submissions, savedDraft] };
+      });
+    } catch (err: any) {
+      set({ error: err.message });
+      throw err;
+    }
   },
 
   submitAssignment: async (submission) => {
@@ -112,6 +145,10 @@ export const useAssignmentStore = create<AssignmentState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submission),
       });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || '提交作业失败');
+      }
       const newSub = await response.json();
       set((state) => {
         const idx = state.submissions.findIndex(s => s.assignmentId === submission.assignmentId && s.studentId === submission.studentId);
@@ -124,15 +161,26 @@ export const useAssignmentStore = create<AssignmentState>((set, get) => ({
       });
     } catch (err: any) {
       set({ error: err.message });
+      throw err;
     }
   },
 
   gradeSubmission: async (submissionId, manualScore, feedback, totalScore) => {
     try {
+      let finalScore = totalScore;
+      
+      // 如果没有传总分，从当前 submission 中计算 (autoScore + manualScore)
+      if (finalScore === undefined) {
+        const sub = get().submissions.find(s => s.id === submissionId);
+        if (sub) {
+          finalScore = (Number(sub.autoScore) || 0) + (Number(manualScore) || 0);
+        }
+      }
+
       const response = await fetch(`/api/assignments/submissions/${submissionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manualScore, feedback, score: totalScore }),
+        body: JSON.stringify({ manualScore, feedback, score: finalScore }),
       });
       const updated = await response.json();
       set((state) => ({

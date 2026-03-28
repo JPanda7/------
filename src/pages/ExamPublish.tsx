@@ -72,7 +72,7 @@ export default function ExamPublish() {
     const totalScore = questions.reduce((sum, q) => sum + (Number(q.score) || 0), 0);
 
     const examData = {
-      courseId: 'c1', // Hardcoded for now
+      courseId: '853e4fac-16e7-4037-bfc1-d4f793b45fe5', // 使用真实课程 ID 保持通过测试环境
       title,
       description,
       startTime: new Date(startTime).toISOString(),

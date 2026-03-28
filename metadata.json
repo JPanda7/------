@@ -1,0 +1,5 @@
+{
+  "name": "教学管理系统",
+  "description": "一个集学生作业管理、自动评价、成绩反馈、考试管理于一体的数字化教学平台",
+  "requestFramePermissions": []
+}

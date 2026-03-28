@@ -17,7 +17,7 @@ export default function AssignmentSubmit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { assignments, submissions, fetchAssignmentById, saveDraft, submitAssignment } = useAssignmentStore();
+  const { assignments, submissions, fetchAssignmentById, fetchSubmissions, saveDraft, submitAssignment, loading } = useAssignmentStore();
 
   const assignment = assignments.find(a => a.id === id);
   const allMySubmissions = submissions.filter(s => s.assignmentId === id && s.studentId === user?.id);
@@ -44,10 +44,11 @@ export default function AssignmentSubmit() {
   } = useChunkedUpload();
 
   useEffect(() => {
-    if (id) {
+    if (id && user?.id) {
       fetchAssignmentById(id);
+      fetchSubmissions(id, user.id);
     }
-  }, [id, fetchAssignmentById]);
+  }, [id, user?.id, fetchAssignmentById, fetchSubmissions]);
 
   useEffect(() => {
     if (draft) {
@@ -61,6 +62,15 @@ export default function AssignmentSubmit() {
     setFeedback({ type, message });
     setTimeout(() => setFeedback(null), 3000);
   };
+
+  if (loading && !assignment) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 min-h-[400px]">
+        <RefreshCw className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+        <p className="text-slate-400 font-bold tracking-tight">正在加载作业详情...</p>
+      </div>
+    );
+  }
 
   if (!assignment) {
     return (

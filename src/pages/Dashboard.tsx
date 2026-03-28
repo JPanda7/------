@@ -57,7 +57,7 @@ export default function Dashboard() {
   ];
 
   const quickActions = user?.role === 'teacher' || user?.role === 'admin' ? [
-    { label: '发布新作业', icon: Plus, path: '/assignments', color: 'bg-blue-600' },
+    { label: '发布新作业', icon: Plus, path: '/assignments/new', color: 'bg-blue-600' },
     { label: '发起签到', icon: Clock, path: '/attendance', color: 'bg-green-600' },
     { label: '系统通知', icon: Bell, path: '/messages', color: 'bg-purple-600' },
   ] : [

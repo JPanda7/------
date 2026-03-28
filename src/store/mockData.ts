@@ -13,6 +13,7 @@ export interface Course {
   courseCode: string;
   courseName: string;
   teacherId: string;
+  teacherName?: string;
   credit: number;
   hours: number;
   status: 'draft' | 'published';

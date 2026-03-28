@@ -13,12 +13,12 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { zhCN } from 'date-fns/locale/zh-CN';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Assignments({ courseId }: { courseId?: string }) {
   const { user } = useAuthStore();
-  const { assignments: allAssignments, fetchAssignments, submissions, loading } = useAssignmentStore();
+  const { assignments: allAssignments, fetchAssignments, submissions, fetchSubmissions, loading } = useAssignmentStore();
   const { courses, fetchCourses } = useCourseStore();
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
@@ -30,13 +30,18 @@ export default function Assignments({ courseId }: { courseId?: string }) {
 
   useEffect(() => {
     fetchCourses();
-  }, [fetchCourses]);
+    if (user?.role === 'student') {
+      fetchSubmissions(undefined, user.id);
+    }
+  }, [fetchCourses, fetchSubmissions, user]);
 
   useEffect(() => {
     if (courseId) {
       setSelectedCourse(courseId);
+    } else if (courses.length > 0 && !selectedCourse) {
+      setSelectedCourse(courses[0].id);
     }
-  }, [courseId]);
+  }, [courseId, courses, selectedCourse]);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -133,7 +138,7 @@ export default function Assignments({ courseId }: { courseId?: string }) {
         </div>
       </div>
 
-      {loading ? (
+      {(loading && allAssignments.length === 0) ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1,2,3].map(i => (
             <div key={i} className="h-64 rounded-[32px] bg-white animate-pulse" />

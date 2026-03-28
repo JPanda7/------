@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { zhCN } from 'date-fns/locale/zh-CN';
 
 export default function Exams({ courseId }: { courseId?: string }) {
   const { user } = useAuthStore();

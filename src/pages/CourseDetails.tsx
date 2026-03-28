@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { 
   ArrowLeft, BookOpen, CheckSquare, FileText, 
   Calendar, FolderOpen, Users, Clock, User,
-  TrendingUp, Award, Zap, GraduationCap, ChevronRight
+  TrendingUp, Award, Zap, GraduationCap, ChevronRight, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -144,7 +144,7 @@ export default function CourseDetails() {
         </div>
       </div>
 
-      <Tabs value={activeTab} className="space-y-8">
+      <Tabs className="space-y-8">
         <TabsList className="bg-white/50 backdrop-blur-sm border-none shadow-sm p-2 rounded-[28px] h-auto flex flex-wrap gap-2 w-fit mx-auto lg:mx-0">
           {tabItems.map((item) => {
             const Icon = item.icon;
@@ -153,6 +153,7 @@ export default function CourseDetails() {
               <TabsTrigger 
                 key={item.id} 
                 value={item.id} 
+                active={activeTab === item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`px-8 py-4 rounded-[20px] transition-all flex items-center gap-3 font-black text-xs uppercase tracking-widest ${
                   isActive 
@@ -173,7 +174,7 @@ export default function CourseDetails() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <TabsContent value="overview">
+        <TabsContent value="overview" active={activeTab === 'overview'}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
               <div className="lg:col-span-2 space-y-8">
                 <Card className="border-none shadow-sm rounded-[40px] overflow-hidden bg-white">
@@ -279,7 +280,7 @@ export default function CourseDetails() {
             </div>
           </TabsContent>
 
-          <TabsContent value="assignments">
+          <TabsContent value="assignments" active={activeTab === 'assignments'}>
             <div className="bg-white/50 backdrop-blur-md rounded-[48px] p-2 border border-white/20 shadow-2xl">
               <div className="bg-white rounded-[40px] p-10 shadow-inner">
                 <Assignments courseId={id} />
@@ -287,7 +288,7 @@ export default function CourseDetails() {
             </div>
           </TabsContent>
 
-          <TabsContent value="exams">
+          <TabsContent value="exams" active={activeTab === 'exams'}>
             <div className="bg-white/50 backdrop-blur-md rounded-[48px] p-2 border border-white/20 shadow-2xl">
               <div className="bg-white rounded-[40px] p-10 shadow-inner">
                 <Exams courseId={id} />
@@ -295,7 +296,7 @@ export default function CourseDetails() {
             </div>
           </TabsContent>
 
-          <TabsContent value="materials">
+          <TabsContent value="materials" active={activeTab === 'materials'}>
             <div className="bg-white/50 backdrop-blur-md rounded-[48px] p-2 border border-white/20 shadow-2xl">
               <div className="bg-white rounded-[40px] p-10 shadow-inner">
                 <Materials courseId={id} />
@@ -303,7 +304,7 @@ export default function CourseDetails() {
             </div>
           </TabsContent>
 
-          <TabsContent value="attendance">
+          <TabsContent value="attendance" active={activeTab === 'attendance'}>
             <div className="bg-white/50 backdrop-blur-md rounded-[48px] p-2 border border-white/20 shadow-2xl">
               <div className="bg-white rounded-[40px] p-10 shadow-inner">
                 <Attendance courseId={id} />

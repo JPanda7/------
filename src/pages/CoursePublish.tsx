@@ -35,12 +35,19 @@ export default function CoursePublish() {
     // 获取教师列表
     fetch('/api/users?role=teacher')
       .then(res => res.json())
-      .then(data => setTeachers(data.map((u: any) => ({
-        id: u.id,
-        realName: u.real_name || u.username,
-        username: u.username
-      }))));
-  }, [user, navigate]);
+      .then(data => {
+        const teacherList = data.map((u: any) => ({
+          id: u.id,
+          realName: u.real_name || u.username,
+          username: u.username
+        }));
+        setTeachers(teacherList);
+        // 如果是创建模式且未选择教师，则默认选中第一个
+        if (!isEditing && !teacherId && teacherList.length > 0) {
+          setTeacherId(teacherList[0].id);
+        }
+      });
+  }, [user, navigate, isEditing, teacherId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

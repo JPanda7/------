@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useNotificationStore } from '@/store/notificationStore';
 import { 
   Bell, Info, AlertCircle, CheckCircle2, Trash2, 
   Search, Filter, ChevronRight, MailOpen, Inbox
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { zhCN } from 'date-fns/locale/zh-CN';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Messages() {

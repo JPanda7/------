@@ -19,19 +19,20 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/assignments', assignmentRoutes);
-app.use('/api/exams', examRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/materials', materialRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/debug', debugRoutes);
+// Routes (Compatible with both local /api and EdgeOne stripped paths)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/courses', '/courses'], courseRoutes);
+app.use(['/api/assignments', '/assignments'], assignmentRoutes);
+app.use(['/api/exams', '/exams'], examRoutes);
+app.use(['/api/users', '/users'], userRoutes);
+app.use(['/api/materials', '/materials'], materialRoutes);
+app.use(['/api/attendance', '/attendance'], attendanceRoutes);
+app.use(['/api/debug', '/debug'], debugRoutes);
 
 
 // Health check
-app.get('/api/health', (req, res) => {
+// Health check
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 

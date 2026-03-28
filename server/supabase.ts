@@ -16,9 +16,9 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABAS
 
 if (!supabaseUrl || !supabaseKey) {
   if (process.env.NODE_ENV === 'production') {
-    console.error('致命错误: 生产环境下未配置 SUPABASE_URL 或 SUPABASE_KEY。请检查 EdgeOne 控制台 -> 环境变量。');
+    console.error('‼️ 致命错误 (Production): 未配置 SUPABASE_URL 或关键环境变量。请检查 EdgeOne 控制台 -> 环境变量。');
   } else {
-    console.warn('警告: 未找到 SUPABASE_URL 或 SUPABASE_KEY 环境变量，请在 .env.server 中配置');
+    console.warn('⚠️ 警告 (Local): 未找到 SUPABASE_URL 或 SUPABASE_KEY 环境变量，请在 .env.server 中配置');
   }
 }
 
